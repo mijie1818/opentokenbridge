@@ -1,0 +1,88 @@
+services:
+  - type: web
+    name: china-ai-proxy
+    image: justsong/one-api:latest
+    region: oregon  # 美国西部，接近海外用户
+    
+    # 商业化环境变量
+    envVars:
+      # 核心配置 - Supabase数据库
+      - key: SQL_DSN
+        value: postgresql://postgres:Mihansen20220812*@db.uenhdkhobpylqblkxuvd.supabase.co:5432/postgres
+        sync: false
+      
+      - key: INITIAL_ADMIN_PASSWORD
+        value: ${ADMIN_PASSWORD}
+        sync: false
+      
+      - key: PORT
+        value: 3000
+      
+      # 商业化设置
+      - key: BILLING_ENABLED
+        value: "true"
+      - key: CURRENCY
+        value: "USD"
+      - key: TOKEN_PRICE
+        value: "0.0005"  # $0.50 per million tokens
+      - key: QUOTA_PER_DOLLAR
+        value: "2000000"  # 2M tokens per dollar
+      
+      # 安全增强
+      - key: SESSION_SECRET
+        generateValue: true
+      - key: JWT_SECRET
+        generateValue: true
+      - key: RATE_LIMIT_ENABLED
+        value: "true"
+      - key: MAX_REQUEST_PER_MINUTE
+        value: "100"
+      
+      # 性能优化
+      - key: CACHE_ENABLED
+        value: "true"
+      - key: CACHE_TTL
+        value: "300"  # 5分钟缓存
+      
+      # 监控和日志
+      - key: LOG_LEVEL
+        value: "info"
+      - key: LOG_DIR
+        value: "/data/logs"
+      - key: TELEMETRY_ENABLED
+        value: "true"
+    
+    # 生产级配置
+    plan: starter  # 避免休眠，保证服务可用性
+    numInstances: 2  # 高可用
+    healthCheckPath: /api/status
+    autoDeploy: true
+    
+    # 持久化存储（日志、缓存、SQLite备份）
+    disk:
+      - name: data
+        mountPath: /data
+        sizeGB: 10
+    
+    # 自定义域名（重要！）
+    domains:
+      - ${CUSTOM_DOMAIN}  # 例如: api.china-ai-proxy.com
+    
+    # 环境变量保护
+    envVars:
+      - key: SENSITIVE_CONFIG
+        sync: false
+
+databases:
+  - name: chinaai-commercial-db
+    databaseName: chinaai_commercial
+    user: chinaai_user
+    plan: starter  # 生产环境不要用free
+    ipAllowList:
+      - source: 0.0.0.0/0
+        description: everywhere
+
+# 可选：Redis缓存提升性能
+# redis:
+#   - name: chinaai-cache
+#     plan: starter
